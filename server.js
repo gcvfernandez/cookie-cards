@@ -57,6 +57,8 @@ async function migrate() {
       PRIMARY KEY (user_id, card_id),
       UNIQUE (user_id, day)
     );
+    -- The one-a-day rule is enforced in code so a signed-in admin can open without limit.
+    ALTER TABLE pulls DROP CONSTRAINT IF EXISTS pulls_user_id_day_key;
   `);
 }
 
@@ -176,11 +178,13 @@ app.get('/api/state', wrap(async (req, res) => {
     q(`SELECT (extract(epoch FROM ((date_trunc('day', now() AT TIME ZONE $1) + interval '1 day') AT TIME ZONE $1) - now()) * 1000)::bigint AS ms`, [TZ]),
   ]);
   const { total, owned } = counts.rows[0];
+  const unlimited = isAdmin(req);
   res.json({
     user: { name: user.name },
     total,
     owned,
-    today: today.rows[0] ? cardJson(today.rows[0]) : null,
+    unlimited,
+    today: today.rows[0] && !unlimited ? cardJson(today.rows[0]) : null,
     msToNext: Number(clock.rows[0].ms),
   });
 }));
@@ -193,7 +197,10 @@ app.post('/api/open', needUser, wrap(async (req, res) => {
     const day = (await client.query('SELECT (now() AT TIME ZONE $1)::date AS d', [TZ])).rows[0].d;
     let cardId;
     let fresh = false;
-    const already = await client.query('SELECT card_id FROM pulls WHERE user_id = $1 AND day = $2', [req.user.id, day]);
+    // An admin signed in on this browser can open as many packs as they like.
+    const already = isAdmin(req)
+      ? { rows: [] }
+      : await client.query('SELECT card_id FROM pulls WHERE user_id = $1 AND day = $2 ORDER BY created_at LIMIT 1', [req.user.id, day]);
     if (already.rows[0]) {
       cardId = already.rows[0].card_id;
     } else {
@@ -354,6 +361,13 @@ app.post('/api/admin/upload', needAdmin, upload.fields([{ name: 'file', maxCount
     [kind, file.filename, poster ? poster.filename : null, takenOn]);
   await generateFor(r.rows[0]);
   res.json({ ok: true, id: r.rows[0].id });
+}));
+
+app.post('/api/admin/reset-me', needAdmin, wrap(async (req, res) => {
+  const user = await currentUser(req);
+  if (!user) return res.status(400).json({ error: 'Enter your PIN in the app on this browser first.' });
+  await q('DELETE FROM pulls WHERE user_id = $1', [user.id]);
+  res.json({ ok: true, name: user.name });
 }));
 
 app.post('/api/admin/cards/:id', needAdmin, wrap(async (req, res) => {

@@ -152,8 +152,9 @@
     }
     shell(`<div class="center">
       <div class="pack bob"><div class="seal"></div>${PAW}<div class="word">COOKIE</div><div class="small">1 memory inside</div></div>
-      <h1 class="h1">Today's memory is waiting</h1>
-      <button class="btn" data-open>Open today's pack</button>
+      <h1 class="h1">${s.unlimited ? 'Another memory is waiting' : "Today's memory is waiting"}</h1>
+      <button class="btn" data-open>${s.unlimited ? 'Open a pack' : "Open today's pack"}</button>
+      ${s.unlimited ? '<p class="hint">Admin mode: no daily limit on this browser</p>' : ''}
       <p class="error" role="alert"></p>
     </div>`, 'today');
     app.querySelector('[data-open]').onclick = async (ev) => {
@@ -184,7 +185,7 @@
       <div class="after">
         <p class="hint">Tap the card to flip it and see the real ${shiny ? 'video' : 'photo'}</p>
         ${soundBtn(card)}
-        <button class="btn" data-act="collection">See my collection</button>
+        ${state.unlimited ? '<button class="btn" data-act="today">Open another pack</button><button class="link" data-act="collection">See my collection</button>' : '<button class="btn" data-act="collection">See my collection</button>'}
       </div>
     </div>`, 'today');
     if (navigator.vibrate) setTimeout(() => navigator.vibrate(shiny ? [40, 60, 40, 60, 120] : 40), 1000);

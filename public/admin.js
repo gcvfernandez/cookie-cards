@@ -91,7 +91,16 @@
       <div class="box"><h2>People</h2>
         <table><tr><th>Name</th><th>Cards found</th><th>Joined</th></tr>
         ${d.people.map((p) => `<tr><td>${esc(p.name)}</td><td>${p.owned} of ${live}</td><td>${esc(new Date(p.created_at).toLocaleDateString())}</td></tr>`).join('') || '<tr><td colspan="3">Nobody has tapped yet.</td></tr>'}
-        </table></div>`;
+        </table></div>
+      <div class="box"><h2>Testing</h2>
+        <p class="muted">While you are signed in here, the app on this same browser has no daily limit, so you can open packs back to back. Everyone else still gets one a day.</p>
+        <div class="row"><button id="reset">Empty my own collection</button></div>
+        <p class="muted" id="resetmsg" role="status"></p></div>`;
+    document.getElementById('reset').onclick = async () => {
+      if (!confirm('Remove every card from your own collection so you can open them again?')) return;
+      try { const r = await api('/api/admin/reset-me', { json: {} }); await load(); document.getElementById('resetmsg').textContent = `${r.name}'s collection is empty again.`; }
+      catch (e) { document.getElementById('resetmsg').textContent = e.message; }
+    };
 
     const status = document.getElementById('status');
     document.getElementById('go').onclick = async (ev) => {
