@@ -137,7 +137,7 @@
         ${soundBtn(s.today)}
         <div class="panel"><h1 class="h1" style="font-size:24px">You've opened today's memory</h1><p class="sub" id="count"></p></div>
       </div>`, 'today');
-      app.querySelector('.card').style.setProperty('--w', '230px');
+      app.querySelector('.card').style.setProperty('--w', 'min(280px, 40dvh)');
       const until = Date.now() + s.msToNext;
       const tick = () => {
         const ms = until - Date.now();
