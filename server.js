@@ -124,13 +124,15 @@ async function startSession(req, res, userId) {
 
 // Live cards, numbered in the order they were added.
 const NUMBERED = `(SELECT c.*, row_number() OVER (ORDER BY c.id) AS no FROM cards c WHERE c.status = 'live')`;
+// Dates after March 2026 come from when a file was saved, not when the memory happened, so they are not shown.
+const DATE_HIDDEN_FROM = new Date(2026, 3, 1);
 const media = (file) => (file ? '/media/' + file : null);
 const cardJson = (r) => ({
   id: r.id,
   no: Number(r.no),
   kind: r.kind,
   title: r.title,
-  taken_on: r.taken_on,
+  taken_on: r.taken_on && new Date(r.taken_on) < DATE_HIDDEN_FROM ? r.taken_on : null,
   cartoon: media(r.cartoon_path),
   original: media(r.original_path),
   poster: media(r.poster_path),
