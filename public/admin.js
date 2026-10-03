@@ -42,6 +42,49 @@
     });
   }
 
+  // ---- "Created" date from the file's own metadata ----
+  const ymd = (y, m, d) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  const sane = (y, m, d) => y >= 1995 && y <= new Date().getFullYear() && m >= 1 && m <= 12 && d >= 1 && d <= 31;
+  const localYmd = (dt) => ymd(dt.getFullYear(), dt.getMonth() + 1, dt.getDate());
+  const latin = (buf) => new TextDecoder('latin1').decode(buf);
+
+  // Photos: EXIF stores dates as plain text "YYYY:MM:DD HH:MM:SS". The earliest one is when it was taken.
+  async function photoDate(file) {
+    const text = latin(await file.slice(0, 2 * 1024 * 1024).arrayBuffer());
+    const found = [];
+    for (const m of text.matchAll(/(\d{4}):(\d{2}):(\d{2}) \d{2}:\d{2}:\d{2}/g)) {
+      if (sane(+m[1], +m[2], +m[3])) found.push(ymd(+m[1], +m[2], +m[3]));
+    }
+    return found.sort()[0] || null;
+  }
+
+  // Videos (MP4/MOV): Apple's creation-date tag if present, else the movie header's creation time.
+  async function videoDate(file) {
+    const chunk = 6 * 1024 * 1024;
+    const parts = [await file.slice(0, chunk).arrayBuffer()];
+    if (file.size > chunk) parts.push(await file.slice(Math.max(chunk, file.size - chunk)).arrayBuffer());
+    for (const buf of parts) {
+      const m = latin(buf).match(/(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}:\d{2}[+-]\d{2}:?\d{2}/);
+      if (m && sane(+m[1], +m[2], +m[3])) return ymd(+m[1], +m[2], +m[3]);
+    }
+    for (const buf of parts) {
+      const at = latin(buf).indexOf('mvhd');
+      if (at < 0 || at + 16 > buf.byteLength) continue;
+      const v = new DataView(buf, at + 4);
+      const secs = v.getUint8(0) === 1 ? Number(v.getBigUint64(4)) : v.getUint32(4);
+      if (!secs) continue;
+      const dt = new Date(Date.UTC(1904, 0, 1) + secs * 1000);
+      if (sane(dt.getFullYear(), dt.getMonth() + 1, dt.getDate())) return localYmd(dt);
+    }
+    return null;
+  }
+
+  async function createdDate(file, isVideo) {
+    const fromMeta = await (isVideo ? videoDate(file) : photoDate(file)).catch(() => null);
+    if (fromMeta) return fromMeta;
+    return file.lastModified ? localYmd(new Date(file.lastModified)) : null;
+  }
+
   function login(msg) {
     root.innerHTML = `<h1>Cookie's Cards · Admin</h1>
       <form class="box"><label>Admin password<input type="password" id="pw" autocomplete="current-password" required></label>
@@ -115,7 +158,8 @@
           const fd = new FormData();
           const isVideo = f.type.startsWith('video/');
           fd.append('kind', isVideo ? 'video' : 'photo');
-          if (f.lastModified) fd.append('taken_on', new Date(f.lastModified).toISOString().slice(0, 10));
+          const taken = await createdDate(f, isVideo);
+          if (taken) fd.append('taken_on', taken);
           if (isVideo) { fd.append('file', f, f.name); fd.append('poster', await videoFrame(f), 'poster.jpg'); }
           else fd.append('file', await photoBlob(f), 'photo.jpg');
           await api('/api/admin/upload', { method: 'POST', body: fd });
