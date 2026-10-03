@@ -14,6 +14,7 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image';
 const TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-3.8-flash';
 const TZ = process.env.APP_TIMEZONE || 'Asia/Manila';
+const MAX_USERS = Number(process.env.MAX_USERS) || 6;
 const YEAR = 400 * 24 * 3600 * 1000; // browsers cap cookie life at about 400 days
 
 fs.mkdirSync(MEDIA_DIR, { recursive: true });
@@ -138,6 +139,8 @@ const cardJson = (r) => ({
   poster: media(r.poster_path),
 });
 
+const seatsFull = async () => (await q('SELECT count(*)::int AS n FROM users')).rows[0].n >= MAX_USERS;
+
 // ---------- player API ----------
 
 app.post('/api/pin', wrap(async (req, res) => {
@@ -145,7 +148,10 @@ app.post('/api/pin', wrap(async (req, res) => {
   const { pin } = req.body || {};
   if (!validPin(pin)) return res.status(400).json({ error: 'Enter 3 digits.' });
   const r = await q('SELECT id, name FROM users WHERE pin = $1', [pin]);
-  if (!r.rows[0]) return res.json({ isNew: true });
+  if (!r.rows[0]) {
+    if (await seatsFull()) return res.status(403).json({ error: `All ${MAX_USERS} seats are taken. Check your PIN, or ask for a seat.` });
+    return res.json({ isNew: true });
+  }
   await startSession(req, res, r.rows[0].id);
   res.json({ isNew: false, name: r.rows[0].name });
 }));
@@ -156,6 +162,7 @@ app.post('/api/register', wrap(async (req, res) => {
   const name = String((req.body || {}).name || '').trim().slice(0, 24);
   if (!validPin(pin)) return res.status(400).json({ error: 'Enter 3 digits.' });
   if (!name) return res.status(400).json({ error: 'Please type your name.' });
+  if (await seatsFull()) return res.status(403).json({ error: `All ${MAX_USERS} seats are taken.` });
   const r = await q('INSERT INTO users (name, pin) VALUES ($1, $2) ON CONFLICT (pin) DO NOTHING RETURNING id', [name, pin]);
   if (!r.rows[0]) return res.status(409).json({ error: 'That PIN was just taken. Pick another.' });
   await startSession(req, res, r.rows[0].id);
@@ -342,12 +349,13 @@ app.post('/api/admin/login', (req, res) => {
 app.get('/api/admin/cards', needAdmin, wrap(async (req, res) => {
   const [cards, people] = await Promise.all([
     q('SELECT * FROM cards ORDER BY id DESC'),
-    q(`SELECT u.name, u.created_at, count(p.card_id)::int AS owned FROM users u LEFT JOIN pulls p ON p.user_id = u.id GROUP BY u.id ORDER BY u.id`),
+    q(`SELECT u.id, u.pin, u.name, u.created_at, count(p.card_id)::int AS owned FROM users u LEFT JOIN pulls p ON p.user_id = u.id GROUP BY u.id ORDER BY u.id`),
   ]);
   res.json({
     aiReady: !!GEMINI_API_KEY,
     cards: cards.rows.map((r) => ({ ...cardJson({ ...r, no: 0 }), status: r.status, error: r.error })),
     people: people.rows,
+    seats: MAX_USERS,
   });
 }));
 
@@ -363,6 +371,21 @@ app.post('/api/admin/upload', needAdmin, upload.fields([{ name: 'file', maxCount
     [kind, file.filename, poster ? poster.filename : null, takenOn]);
   await generateFor(r.rows[0]);
   res.json({ ok: true, id: r.rows[0].id });
+}));
+
+app.post('/api/admin/users/:id', needAdmin, wrap(async (req, res) => {
+  const { pin } = req.body || {};
+  if (!validPin(pin)) return res.status(400).json({ error: 'A PIN is 3 digits, each from 1 to 9.' });
+  const clash = await q('SELECT name FROM users WHERE pin = $1 AND id <> $2', [pin, req.params.id]);
+  if (clash.rows[0]) return res.status(409).json({ error: `${clash.rows[0].name} already uses that PIN.` });
+  const r = await q('UPDATE users SET pin = $1 WHERE id = $2 RETURNING id', [pin, req.params.id]);
+  if (!r.rows[0]) return res.status(404).json({ error: 'Person not found.' });
+  res.json({ ok: true });
+}));
+
+app.delete('/api/admin/users/:id', needAdmin, wrap(async (req, res) => {
+  await q('DELETE FROM users WHERE id = $1', [req.params.id]);
+  res.json({ ok: true });
 }));
 
 app.post('/api/admin/reset-me', needAdmin, wrap(async (req, res) => {

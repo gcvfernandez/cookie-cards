@@ -131,10 +131,14 @@
       </div>
       <div class="box"><h2>Cards · ${live} live, ${d.cards.length - live} draft</h2>
         <div class="cards">${d.cards.map(cardBox).join('') || '<p class="muted">Nothing uploaded yet.</p>'}</div></div>
-      <div class="box"><h2>People</h2>
-        <table><tr><th>Name</th><th>Cards found</th><th>Joined</th></tr>
-        ${d.people.map((p) => `<tr><td>${esc(p.name)}</td><td>${p.owned} of ${live}</td><td>${esc(new Date(p.created_at).toLocaleDateString())}</td></tr>`).join('') || '<tr><td colspan="3">Nobody has tapped yet.</td></tr>'}
-        </table></div>
+      <div class="box"><h2>People · ${d.people.length} of ${d.seats} seats used</h2>
+        <p class="muted">Forgot a PIN? Type a new one (3 digits, 1 to 9) and save. Removing a person frees their seat and deletes their collection.</p>
+        <table><tr><th>Name</th><th>PIN</th><th>Cards found</th><th>Joined</th><th></th></tr>
+        ${d.people.map((p) => `<tr data-user="${p.id}"><td>${esc(p.name)}</td>
+          <td><input type="text" inputmode="numeric" maxlength="3" value="${esc(p.pin)}" aria-label="PIN for ${esc(p.name)}" style="width:5em"></td>
+          <td>${p.owned} of ${live}</td><td>${esc(new Date(p.created_at).toLocaleDateString())}</td>
+          <td><div class="row"><button data-user-do="pin">Save PIN</button><button data-user-do="remove">Remove</button></div></td></tr>`).join('') || '<tr><td colspan="5">Nobody has tapped yet.</td></tr>'}
+        </table><p class="err" id="peoplemsg" role="alert"></p></div>
       <div class="box"><h2>Testing</h2>
         <p class="muted">While you are signed in here, the app on this same browser has no daily limit, so you can open packs back to back. Everyone else still gets one a day.</p>
         <div class="row"><button id="reset">Empty my own collection</button></div>
@@ -168,6 +172,23 @@
       await load();
       if (problems.length) document.getElementById('status').textContent = 'Some files failed: ' + problems.join(' ');
     };
+
+    root.querySelectorAll('[data-user]').forEach((row) => {
+      const id = row.dataset.user;
+      const who = row.cells[0].textContent;
+      row.querySelectorAll('[data-user-do]').forEach((b) => (b.onclick = async () => {
+        try {
+          if (b.dataset.userDo === 'remove') {
+            if (!confirm(`Remove ${who} and delete their whole collection? This cannot be undone.`)) return;
+            await api(`/api/admin/users/${id}`, { method: 'DELETE' });
+          } else {
+            await api(`/api/admin/users/${id}`, { json: { pin: row.querySelector('input').value.trim() } });
+          }
+          await load();
+          if (b.dataset.userDo === 'pin') document.getElementById('peoplemsg').textContent = `${who}'s PIN is updated.`;
+        } catch (e) { document.getElementById('peoplemsg').textContent = e.message; }
+      }));
+    });
 
     root.querySelectorAll('.c').forEach((box) => {
       const id = box.dataset.id;
