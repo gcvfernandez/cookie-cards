@@ -71,6 +71,30 @@
 
   // ---------- PIN and name ----------
 
+  // First visit on a phone: the intro video, then on to the PIN.
+  function viewLanding() {
+    bare(`<div class="landing">
+      <div class="brand lockup">${PAW}Cookie's Cards</div>
+      <div class="intro">
+        <video src="/intro.mp4" poster="/intro.jpg" autoplay muted loop playsinline preload="auto" aria-label="Intro video: how Cookie's Cards works"></video>
+        <button class="soundpill" data-intro-sound>Tap for sound</button>
+      </div>
+      <div><h1 class="h1">A memory of Cookie, every day</h1><p class="sub" style="margin-top:4px">Open one card a day and collect them all.</p></div>
+      <button class="btn" data-start>Start my collection</button>
+      <button class="link" data-start>I already have a PIN</button>
+    </div>`, 'bg-rays');
+    const vid = app.querySelector('video');
+    const pill = app.querySelector('[data-intro-sound]');
+    vid.play().catch(() => {});
+    const toggle = () => {
+      if (vid.muted) { vid.muted = false; vid.currentTime = 0; vid.play().catch(() => {}); pill.textContent = 'Mute'; }
+      else { vid.muted = true; pill.textContent = 'Tap for sound'; }
+    };
+    pill.onclick = (ev) => { ev.stopPropagation(); toggle(); };
+    vid.onclick = toggle;
+    app.querySelectorAll('[data-start]').forEach((b) => (b.onclick = () => viewPin()));
+  }
+
   function viewPin(message) {
     let pin = '';
     bare(`<div class="center" style="padding-top:calc(40px + env(safe-area-inset-top))">
@@ -258,7 +282,7 @@
   async function load() {
     try {
       state = await api('/api/state');
-      if (!state.user) return viewPin();
+      if (!state.user) return viewLanding();
       viewToday();
     } catch (e) {
       bare(`<div class="center"><div class="panel"><h1 class="h1">Can't reach Cookie's cards</h1><p class="sub">Check your connection and try again.</p></div><button class="btn" id="retry">Try again</button></div>`);
