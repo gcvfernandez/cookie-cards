@@ -77,8 +77,8 @@
       <div class="brand lockup">${PAW}Cookie's Cards</div>
       <div class="intro">
         <video src="/intro.mp4" poster="/intro.jpg" autoplay muted loop playsinline preload="auto" aria-label="Intro video: how Cookie's Cards works"></video>
-        <button class="soundpill" data-intro-sound>Tap for sound</button>
       </div>
+      <button class="soundpill" data-intro-sound>Tap for sound</button>
       <div><h1 class="h1">A memory of Cookie, every day</h1><p class="sub" style="margin-top:4px">Open one card a day and collect them all.</p></div>
       <button class="btn" data-start>Start my collection</button>
       <button class="link" data-start>I already have a PIN</button>

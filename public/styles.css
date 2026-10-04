@@ -148,9 +148,9 @@ button { cursor: pointer; }
 }
 
 /* Landing */
-.landing { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: calc(16px + env(safe-area-inset-top)) 24px calc(12px + env(safe-area-inset-bottom)); text-align: center; }
+.landing { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: calc(16px + env(safe-area-inset-top)) 24px calc(12px + env(safe-area-inset-bottom)); text-align: center; }
 .lockup { display: flex; align-items: center; gap: 8px; }
 .lockup .paw { width: 24px; height: 24px; }
-.intro { position: relative; height: min(460px, 52dvh); aspect-ratio: 9 / 16; border: 3px solid var(--ink); border-radius: 22px; background: var(--ink); box-shadow: 0 8px 0 var(--ink); overflow: hidden; transform: rotate(-1.5deg); flex: none; margin-bottom: 8px; }
+.intro { position: relative; height: min(440px, 46dvh); aspect-ratio: 9 / 16; border: 3px solid var(--ink); border-radius: 22px; background: var(--ink); box-shadow: 0 8px 0 var(--ink); overflow: hidden; transform: rotate(-1.5deg); flex: none; margin-bottom: 4px; }
 .intro video { width: 100%; height: 100%; object-fit: cover; display: block; cursor: pointer; }
-.soundpill { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); min-height: 44px; padding: 8px 18px; background: var(--white); border: 2px solid var(--ink); border-radius: 999px; font-size: 14px; font-weight: 700; box-shadow: 0 3px 0 var(--ink); white-space: nowrap; }
+.soundpill { min-height: 44px; padding: 8px 18px; background: var(--white); border: 2px solid var(--ink); border-radius: 999px; font-size: 14px; font-weight: 700; box-shadow: 0 3px 0 var(--ink); white-space: nowrap; }
