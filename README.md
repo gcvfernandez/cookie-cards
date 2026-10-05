@@ -46,3 +46,23 @@ Use any NFC writer app (for example "NFC Tools"), choose **Write → Add a recor
 npm install
 DATABASE_URL=postgres://localhost/ctc ADMIN_PASSWORD=dev npm start
 ```
+
+## Reference materials
+
+| File | What it is |
+| --- | --- |
+| [`docs/cookies-cards-ad-v2.mp4`](docs/cookies-cards-ad-v2.mp4) | The 30-second intro video, original quality (1080×1920). The app plays a smaller copy of it, `public/intro.mp4`, on the landing page. |
+| [`docs/cookie-card-print.pdf`](docs/cookie-card-print.pdf) | The printable two-sided card that carries the NFC sticker (about 100 × 200 mm). |
+
+| Front | Back |
+| --- | --- |
+| ![Front of the printed card](docs/cookie-card-print-1.png) | ![Back of the printed card](docs/cookie-card-print-2.png) |
+
+**Printed card.** The front marks where the NFC sticker goes ("Tap your phone here"). The back explains the three steps, the two card types, and has a 64-box checklist for Series 1. The footer prints the app's address for phones without NFC, so reprint the card if the domain ever changes.
+
+**Replacing the intro video.** Put the new original in `docs/`, then make the web copy and its poster frame:
+
+```
+ffmpeg -i docs/NEW.mp4 -vf scale=720:-2 -c:v libx264 -crf 25 -preset slow -pix_fmt yuv420p -c:a aac -b:a 112k -movflags +faststart public/intro.mp4
+ffmpeg -ss 9 -i public/intro.mp4 -frames:v 1 -q:v 4 public/intro.jpg
+```
